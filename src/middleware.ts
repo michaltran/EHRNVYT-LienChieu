@@ -5,7 +5,7 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || 'dev-secret-change-me-in-production-please-min32'
 );
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/_next', '/favicon.ico'];
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/setup', '/api/setup', '/_next', '/favicon.ico'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
