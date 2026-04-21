@@ -135,12 +135,12 @@ model ExamRound {
 }
 
 model HealthRecord {
-  id                        String       @id @default(cuid())
+  id                        String                @id @default(cuid())
   employeeId                String
-  employee                  Employee     @relation(fields: [employeeId], references: [id])
+  employee                  Employee              @relation(fields: [employeeId], references: [id])
   examRoundId               String
-  examRound                 ExamRound    @relation(fields: [examRoundId], references: [id])
-  status                    RecordStatus @default(PENDING)
+  examRound                 ExamRound             @relation(fields: [examRoundId], references: [id])
+  status                    RecordStatus          @default(PENDING)
   height                    Float?
   weight                    Float?
   bmi                       Float?
@@ -151,7 +151,7 @@ model HealthRecord {
   finalClassification       HealthClassification?
   conclusionText            String?
   concluderId               String?
-  concluder                 User?        @relation("Concluder", fields: [concluderId], references: [id])
+  concluder                 User?                 @relation("Concluder", fields: [concluderId], references: [id])
   concluderSignedAt         DateTime?
   concluderSignatureDataUrl String?
   medicalHistoryNote        String?
@@ -159,8 +159,8 @@ model HealthRecord {
   adminReviewNote           String?
   reviewedAt                DateTime?
   finalizedAt               DateTime?
-  createdAt                 DateTime     @default(now())
-  updatedAt                 DateTime     @updatedAt
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
 
   clinicalExams ExamClinical[]
   paraclinicals Paraclinical[]
