@@ -5,12 +5,21 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          50:  '#eff6ff',
-          100: '#dbeafe',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
+          50:  '#EAF3FB',
+          100: '#CFE2F4',
+          200: '#9CC4E9',
+          300: '#6AA6DE',
+          400: '#3989D3',
+          500: '#1E73BE',
+          600: '#185FA0',
+          700: '#134B82',
+          800: '#0E3663',
+          900: '#092245',
         },
+      },
+      backgroundImage: {
+        'brand-gradient': 'linear-gradient(135deg, #1E73BE 0%, #134B82 100%)',
+        'brand-gradient-light': 'linear-gradient(135deg, #EAF3FB 0%, #CFE2F4 100%)',
       },
     },
   },

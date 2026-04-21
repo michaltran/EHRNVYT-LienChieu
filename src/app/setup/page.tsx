@@ -12,6 +12,7 @@ export default async function SetupPage() {
         <h1 className="text-2xl font-bold text-slate-800 mb-2">Khởi tạo hệ thống</h1>
         <p className="text-sm text-slate-600 mb-6">
           Trang này chỉ dùng 1 lần duy nhất để tạo tài khoản admin và các tài khoản bác sĩ mẫu.
+          Sau khi khởi tạo xong, bạn nên xóa file <code>src/app/setup/page.tsx</code> hoặc chặn truy cập.
         </p>
 
         <div className="bg-white rounded-lg border border-slate-200 p-5 mb-4">

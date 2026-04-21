@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SPECIALTY_LABELS, STATUS_LABELS } from '@/lib/constants';
+import SignaturePad from '@/components/SignaturePad';
 
 type Props = {
   record: any;
@@ -13,6 +14,13 @@ export default function AdminRecordClient({ record }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+
+  // State cho ký NLĐ
+  const [empSig, setEmpSig] = useState<string | null>(record.employeeSignatureDataUrl ?? null);
+  // State cho người lập sổ
+  const [makerSig, setMakerSig] = useState<string | null>(record.bookMakerSignatureDataUrl ?? null);
+  const [makerName, setMakerName] = useState(record.bookMakerName ?? '');
+  const [makerTitle, setMakerTitle] = useState(record.bookMakerTitle ?? '');
 
   async function approve() {
     if (!confirm('Duyệt hồ sơ và chuyển cho Bác sĩ kết luận ký?')) return;
@@ -29,6 +37,33 @@ export default function AdminRecordClient({ record }: Props) {
     const res = await fetch(`/api/admin/records/${record.id}/sendback`, { method: 'POST' });
     setLoading(false);
     if (res.ok) { setMsg('✅ Đã trả lại'); router.refresh(); }
+    else setMsg('❌ Lỗi');
+  }
+
+  async function saveEmpSig() {
+    setLoading(true); setMsg('');
+    const res = await fetch(`/api/admin/records/${record.id}/employee-sign`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ signatureDataUrl: empSig }),
+    });
+    setLoading(false);
+    if (res.ok) { setMsg('✅ Đã lưu chữ ký NLĐ'); router.refresh(); }
+    else setMsg('❌ Lỗi');
+  }
+
+  async function saveMakerSig() {
+    if (!makerName.trim()) { setMsg('❌ Nhập tên người lập sổ'); return; }
+    setLoading(true); setMsg('');
+    const res = await fetch(`/api/admin/records/${record.id}/maker-sign`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signatureDataUrl: makerSig,
+        name: makerName.trim(),
+        title: makerTitle.trim() || null,
+      }),
+    });
+    setLoading(false);
+    if (res.ok) { setMsg('✅ Đã lưu chữ ký người lập sổ'); router.refresh(); }
     else setMsg('❌ Lỗi');
   }
 
@@ -100,6 +135,49 @@ export default function AdminRecordClient({ record }: Props) {
               <div className="text-sm text-slate-600 mt-1">{e.findings || '—'}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Ký NLĐ + Người lập sổ */}
+      <div className="grid md:grid-cols-2 gap-4 no-print">
+        <div className="card">
+          <h2 className="font-semibold mb-2">Chữ ký người lao động</h2>
+          <p className="text-xs text-slate-600 mb-2">
+            NLĐ xác nhận thông tin trong hồ sơ là đúng (ký trực tiếp trên màn hình hoặc upload ảnh)
+          </p>
+          <SignaturePad value={empSig} onChange={setEmpSig} savedSignature={null} />
+          <button onClick={saveEmpSig} disabled={loading || !empSig} className="btn-primary mt-3">
+            Lưu chữ ký NLĐ
+          </button>
+          {record.employeeSignedAt && (
+            <p className="text-xs text-green-700 mt-2">
+              ✓ Đã ký lúc {new Date(record.employeeSignedAt).toLocaleString('vi-VN')}
+            </p>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 className="font-semibold mb-2">Người lập sổ KSK định kỳ</h2>
+          <div className="space-y-2 mb-2">
+            <div>
+              <label className="label text-xs">Họ tên</label>
+              <input className="input" value={makerName} onChange={(e) => setMakerName(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">Chức danh</label>
+              <input className="input" value={makerTitle} onChange={(e) => setMakerTitle(e.target.value)}
+                placeholder="VD: Điều dưỡng trưởng, Chuyên viên hành chính..." />
+            </div>
+          </div>
+          <SignaturePad value={makerSig} onChange={setMakerSig} savedSignature={null} />
+          <button onClick={saveMakerSig} disabled={loading || !makerSig || !makerName} className="btn-primary mt-3">
+            Lưu chữ ký người lập sổ
+          </button>
+          {record.bookMakerSignedAt && (
+            <p className="text-xs text-green-700 mt-2">
+              ✓ {record.bookMakerName} đã ký lúc {new Date(record.bookMakerSignedAt).toLocaleString('vi-VN')}
+            </p>
+          )}
         </div>
       </div>
 

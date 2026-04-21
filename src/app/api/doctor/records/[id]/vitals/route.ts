@@ -16,6 +16,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         bloodPressureSys: data.bpSys ? Number(data.bpSys) : null,
         bloodPressureDia: data.bpDia ? Number(data.bpDia) : null,
         physicalClassification: data.physicalClassification || null,
+        medicalHistoryNote: data.medicalHistoryNote || null,
+        obstetricHistory: data.obstetricHistory || null,
         status: 'IN_PROGRESS',
       },
     });

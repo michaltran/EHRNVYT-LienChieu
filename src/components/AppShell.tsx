@@ -33,10 +33,10 @@ export default function AppShell({
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col no-print">
-        <div className="p-5 border-b border-slate-700">
-          <div className="font-bold">TTYT Liên Chiểu</div>
-          <div className="text-xs text-slate-400 mt-0.5">Hồ sơ sức khỏe định kỳ</div>
+      <aside className="w-64 sidebar-gradient text-slate-100 flex flex-col no-print">
+        <div className="p-5 border-b border-white/10">
+          <div className="font-bold text-white">TTYT Liên Chiểu</div>
+          <div className="text-xs text-slate-300 mt-0.5">Hồ sơ sức khỏe định kỳ</div>
         </div>
         <nav className="flex-1 p-3 space-y-1">
           {nav.map((it) => {
@@ -45,8 +45,8 @@ export default function AppShell({
               <Link
                 key={it.href}
                 href={it.href}
-                className={`block px-3 py-2 rounded text-sm ${
-                  active ? 'bg-brand-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+                className={`block px-3 py-2 rounded text-sm transition ${
+                  active ? 'bg-white/15 text-white font-medium shadow-sm' : 'text-slate-200 hover:bg-white/10'
                 }`}
               >
                 {it.label}
@@ -54,15 +54,20 @@ export default function AppShell({
             );
           })}
         </nav>
-        <div className="p-4 border-t border-slate-700 text-xs">
-          <div className="font-medium text-slate-100">{user.fullName}</div>
-          <div className="text-slate-400 mt-0.5">{roleLabel[user.role] ?? user.role}</div>
-          <button onClick={logout} className="mt-3 w-full btn bg-slate-700 text-slate-100 hover:bg-slate-600">
+        <div className="p-4 border-t border-white/10 text-xs">
+          <div className="font-medium text-white">{user.fullName}</div>
+          <div className="text-slate-300 mt-0.5">{roleLabel[user.role] ?? user.role}</div>
+          <button onClick={logout} className="mt-3 w-full btn bg-white/10 text-white hover:bg-white/20">
             Đăng xuất
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-6 overflow-x-auto">{children}</main>
+      <main className="flex-1 p-6 overflow-x-auto">
+        <div>{children}</div>
+        <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-400 italic">
+          Software Copyright Powered by Dat Dat
+        </div>
+      </main>
     </div>
   );
 }

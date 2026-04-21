@@ -14,7 +14,7 @@ export default async function DoctorExamPage({ params }: { params: { id: string 
     include: {
       employee: { include: { department: true } },
       examRound: true,
-      clinicalExams: { include: { doctor: { select: { fullName: true } } } },
+      clinicalExams: { include: { doctor: { select: { fullName: true, jobTitle: true } } } },
     },
   });
   if (!record) notFound();
@@ -50,11 +50,13 @@ export default async function DoctorExamPage({ params }: { params: { id: string 
           extraData: ce.extraData,
           signedAt: ce.signedAt?.toISOString() ?? null,
           signatureDataUrl: ce.signatureDataUrl,
-          doctorName: ce.doctor?.fullName ?? null,
+          doctorName: ce.doctorNameSnapshot ?? ce.doctor?.fullName ?? null,
+          doctorTitle: ce.doctorTitleSnapshot ?? ce.doctor?.jobTitle ?? null,
         })),
       }}
       mySpecialties={mySpecialties}
       savedSignature={doctor.signatureDataUrl}
+      userTitle={doctor.jobTitle}
     />
   );
 }

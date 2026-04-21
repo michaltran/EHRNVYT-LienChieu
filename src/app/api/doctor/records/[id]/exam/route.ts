@@ -8,7 +8,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const s = await requireAuth(['DOCTOR']);
     const data = await req.json();
 
-    // Verify bác sĩ được phép khám specialty này
     const user = await prisma.user.findUnique({ where: { id: s.sub } });
     if (!user?.specialties) {
       return NextResponse.json({ error: 'Chưa được phân công chuyên khoa' }, { status: 403 });
@@ -17,12 +16,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     if (!allowed.includes(data.specialty)) {
       return NextResponse.json({ error: 'Không được phép khám chuyên khoa này' }, { status: 403 });
     }
-
     if (!data.signatureDataUrl) {
       return NextResponse.json({ error: 'Thiếu chữ ký' }, { status: 400 });
     }
 
-    // Upsert ExamClinical
     const ce = await prisma.examClinical.upsert({
       where: { recordId_specialty: { recordId: params.id, specialty: data.specialty } },
       create: {
@@ -30,20 +27,26 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         specialty: data.specialty,
         findings: data.findings || null,
         classification: data.classification || null,
+        extraData: data.extraData || null,
         doctorId: s.sub,
         signedAt: new Date(),
         signatureDataUrl: data.signatureDataUrl,
+        doctorNameSnapshot: user.fullName,
+        doctorTitleSnapshot: user.jobTitle,
       },
       update: {
         findings: data.findings || null,
         classification: data.classification || null,
+        extraData: data.extraData || null,
         doctorId: s.sub,
         signedAt: new Date(),
         signatureDataUrl: data.signatureDataUrl,
+        doctorNameSnapshot: user.fullName,
+        doctorTitleSnapshot: user.jobTitle,
       },
     });
 
-    // Nếu user chưa có saved signature, lưu lại để lần sau dùng
+    // Tự động lưu chữ ký nếu bác sĩ chưa có signature mẫu
     if (!user.signatureDataUrl) {
       await prisma.user.update({
         where: { id: s.sub },
@@ -51,7 +54,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     }
 
-    // Cập nhật status hồ sơ sang IN_PROGRESS
     await prisma.healthRecord.update({
       where: { id: params.id },
       data: { status: 'IN_PROGRESS' },

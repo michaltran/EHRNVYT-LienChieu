@@ -14,7 +14,7 @@ type Props = {
     height: number | null; weight: number | null; bmi: number | null;
     pulse: number | null; bpSys: number | null; bpDia: number | null;
     physicalClassification: string | null;
-    clinicalExams: { specialty: string; findings: string | null; classification: string | null; doctorName: string | null; signedAt: string | null }[];
+    clinicalExams: { specialty: string; findings: string | null; classification: string | null; doctorName: string | null; doctorTitle: string | null; signedAt: string | null }[];
     finalClassification: string | null;
     conclusionText: string | null;
   };
@@ -92,7 +92,7 @@ export default function ConcluderForm({ record, savedSignature }: Props) {
               <div className="text-sm text-slate-700 mt-1">{e.findings || '—'}</div>
               {e.signedAt && (
                 <div className="text-xs text-slate-500 mt-1">
-                  Ký: {e.doctorName} • {new Date(e.signedAt).toLocaleString('vi-VN')}
+                  Ký: {e.doctorName}{e.doctorTitle && ` (${e.doctorTitle})`} • {new Date(e.signedAt).toLocaleString('vi-VN')}
                 </div>
               )}
             </div>

@@ -18,6 +18,7 @@ export async function POST(req: Request) {
         passwordHash: await hashPassword(data.password),
         fullName: data.fullName,
         role: data.role,
+        jobTitle: data.jobTitle || null,
         departmentId: data.departmentId || null,
         specialties: data.specialties && data.specialties.length ? JSON.stringify(data.specialties) : null,
       },
