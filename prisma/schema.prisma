@@ -1,19 +1,12 @@
-// Prisma schema cho hệ thống quản lý hồ sơ khám sức khỏe định kỳ
-// Mặc định dùng SQLite cho dev local, đổi sang postgresql khi deploy Vercel + Postgres
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  // Đổi thành "postgresql" khi deploy production (Vercel Postgres / Supabase / Neon)
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ============ NGƯỜI DÙNG HỆ THỐNG ============
-// Có 4 vai trò: ADMIN, DOCTOR (bác sĩ khám), CONCLUDER (bác sĩ kết luận/Giám đốc),
-// DEPT_REP (đại diện khoa), EMPLOYEE (nhân viên xem hồ sơ mình)
 enum Role {
   ADMIN
   DOCTOR
@@ -22,105 +15,24 @@ enum Role {
   EMPLOYEE
 }
 
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  fullName     String
-  role         Role     @default(EMPLOYEE)
-  // Chuyên khoa bác sĩ phụ trách (dạng JSON string: ["NOI","NGOAI","MAT"])
-  specialties  String?
-  // Chữ ký điện tử đã lưu (dataURL PNG base64) - bác sĩ có thể upload/vẽ 1 lần dùng lại
-  signatureDataUrl String?
-  // Liên kết tới khoa (dành cho DEPT_REP và EMPLOYEE)
-  departmentId String?
-  department   Department? @relation(fields: [departmentId], references: [id])
-  // Liên kết tới Employee nếu user này đồng thời là nhân viên
-  employeeId   String?  @unique
-  employee     Employee? @relation(fields: [employeeId], references: [id])
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  examsAsDoctor    ExamClinical[] @relation("DoctorExam")
-  conclusionsSigned HealthRecord[] @relation("Concluder")
-  auditLogs        AuditLog[]
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
 }
 
-// ============ KHOA / PHÒNG BAN ============
-model Department {
-  id        String @id @default(cuid())
-  name      String @unique
-  code      String? @unique
-  createdAt DateTime @default(now())
-
-  employees Employee[]
-  users     User[]
+enum ExamRoundStatus {
+  DRAFT
+  OPEN
+  CLOSED
 }
 
-// ============ NHÂN VIÊN (ĐỐI TƯỢNG ĐI KHÁM) ============
-enum Gender { MALE FEMALE OTHER }
-
-model Employee {
-  id               String     @id @default(cuid())
-  employeeCode     String?    @unique // mã nhân viên nội bộ
-  fullName         String
-  gender           Gender
-  dateOfBirth      DateTime?
-  idNumber         String?    // Số CCCD/CMND/định danh
-  idIssuedDate     DateTime?
-  idIssuedPlace    String?
-  phone            String?
-  currentAddress   String?
-  occupation       String?    // Nghề nghiệp
-  workplace        String?    // Nơi công tác hiện tại (mặc định = TTYT Liên Chiểu)
-  startWorkingDate DateTime?  // Ngày bắt đầu làm việc
-  position         String?    // Chức vụ
-  employmentType   String?    // Viên chức / HĐ68 / ...
-  qualification    String?    // Trình độ chuyên môn
-  jobTitle         String?    // Chức danh nghề nghiệp
-  photoUrl         String?    // URL ảnh 4x6 (lưu trên storage/base64)
-
-  // Tiền sử gia đình (text) + tiền sử bệnh bản thân (JSON)
-  familyHistory    String?
-  personalHistory  String?    // JSON: [{tenBenh, namPhatHien, tenBenhNgheNghiep, namPhatHienNN}]
-
-  // Công việc trước đây (JSON: [{moTa, tuNgay, denNgay, thoiGian}])
-  previousJobs     String?
-
-  departmentId     String
-  department       Department @relation(fields: [departmentId], references: [id])
-
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-
-  healthRecords    HealthRecord[]
-  user             User?
-}
-
-// ============ ĐỢT KHÁM ============
-enum ExamRoundStatus { DRAFT OPEN CLOSED }
-
-model ExamRound {
-  id          String   @id @default(cuid())
-  name        String   // "Khám sức khỏe định kỳ 2025"
-  year        Int
-  startDate   DateTime
-  endDate     DateTime?
-  status      ExamRoundStatus @default(DRAFT)
-  createdAt   DateTime @default(now())
-
-  healthRecords HealthRecord[]
-}
-
-// ============ HỒ SƠ KHÁM ============
-// Mỗi HealthRecord = 1 nhân viên trong 1 đợt khám
 enum RecordStatus {
-  PENDING          // Chưa bắt đầu, chờ NV đi khám
-  IN_PROGRESS      // Đang khám các chuyên khoa
-  WAITING_REVIEW   // Đại diện khoa đã gửi lên, chờ Admin duyệt
-  WAITING_CONCLUSION // Admin đã duyệt, chờ bác sĩ kết luận ký
-  COMPLETED        // Đã ký kết luận, hoàn tất
+  PENDING
+  IN_PROGRESS
+  WAITING_REVIEW
+  WAITING_CONCLUSION
+  COMPLETED
 }
 
 enum HealthClassification {
@@ -131,58 +43,12 @@ enum HealthClassification {
   LOAI_V
 }
 
-model HealthRecord {
-  id           String       @id @default(cuid())
-  employeeId   String
-  employee     Employee     @relation(fields: [employeeId], references: [id])
-  examRoundId  String
-  examRound    ExamRound    @relation(fields: [examRoundId], references: [id])
-
-  status       RecordStatus @default(PENDING)
-
-  // Phần II. Thể lực
-  height       Float?       // cm
-  weight       Float?       // kg
-  bmi          Float?
-  pulse        Int?         // lần/phút
-  bloodPressureSys Int?     // tâm thu
-  bloodPressureDia Int?     // tâm trương
-  physicalClassification String? // Phân loại thể lực
-
-  // Phần V. Kết luận
-  finalClassification HealthClassification?
-  conclusionText      String?        // Các bệnh, tật, hướng điều trị
-  concluderId         String?
-  concluder           User?          @relation("Concluder", fields: [concluderId], references: [id])
-  concluderSignedAt   DateTime?
-  concluderSignatureDataUrl String?
-
-  // Tiền sử bệnh do bác sĩ khám ghi (phần I)
-  medicalHistoryNote  String?
-  // Tiền sử sản phụ khoa (JSON object)
-  obstetricHistory    String?
-
-  adminReviewNote     String?
-  reviewedAt          DateTime?
-  finalizedAt         DateTime?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  clinicalExams ExamClinical[]
-  paraclinicals Paraclinical[]
-
-  @@unique([employeeId, examRoundId])
-}
-
-// ============ KHÁM LÂM SÀNG TỪNG CHUYÊN KHOA ============
-// Một HealthRecord có nhiều ExamClinical (mỗi chuyên khoa 1 record)
 enum Specialty {
-  NOI_TUAN_HOAN    // Nội - Tuần hoàn
-  NOI_HO_HAP       // Nội - Hô hấp
-  NOI_TIEU_HOA     // Nội - Tiêu hóa
+  NOI_TUAN_HOAN
+  NOI_HO_HAP
+  NOI_TIEU_HOA
   NOI_THAN_TIET_NIEU
-  NOI_TIET         // Nội tiết
+  NOI_TIET
   CO_XUONG_KHOP
   THAN_KINH
   TAM_THAN
@@ -194,46 +60,150 @@ enum Specialty {
   RANG_HAM_MAT
 }
 
-model ExamClinical {
-  id         String    @id @default(cuid())
-  recordId   String
-  record     HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  specialty  Specialty
-  // Nội dung khám (văn bản) + phân loại riêng mục này
-  findings   String?
-  classification String?   // Khá đa dạng nên dùng text
-  // Dữ liệu chuyên biệt (JSON): ví dụ Mắt có mat_phai_co_kinh, Tai có noi_tham... RHM có hàm_trên...
-  extraData  String?
-  doctorId   String?
-  doctor     User?     @relation("DoctorExam", fields: [doctorId], references: [id])
-  signedAt   DateTime?
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String
+  fullName         String
+  role             Role      @default(EMPLOYEE)
+  specialties      String?
   signatureDataUrl String?
-  updatedAt  DateTime  @updatedAt
+  departmentId     String?
+  department       Department? @relation(fields: [departmentId], references: [id])
+  employeeId       String?   @unique
+  employee         Employee? @relation(fields: [employeeId], references: [id])
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  examsAsDoctor     ExamClinical[] @relation("DoctorExam")
+  conclusionsSigned HealthRecord[] @relation("Concluder")
+  auditLogs         AuditLog[]
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  code      String?  @unique
+  createdAt DateTime @default(now())
+
+  employees Employee[]
+  users     User[]
+}
+
+model Employee {
+  id               String     @id @default(cuid())
+  employeeCode     String?    @unique
+  fullName         String
+  gender           Gender
+  dateOfBirth      DateTime?
+  idNumber         String?
+  idIssuedDate     DateTime?
+  idIssuedPlace    String?
+  phone            String?
+  currentAddress   String?
+  occupation       String?
+  workplace        String?
+  startWorkingDate DateTime?
+  position         String?
+  employmentType   String?
+  qualification    String?
+  jobTitle         String?
+  photoUrl         String?
+  familyHistory    String?
+  personalHistory  String?
+  previousJobs     String?
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  healthRecords HealthRecord[]
+  user          User?
+}
+
+model ExamRound {
+  id        String          @id @default(cuid())
+  name      String
+  year      Int
+  startDate DateTime
+  endDate   DateTime?
+  status    ExamRoundStatus @default(DRAFT)
+  createdAt DateTime        @default(now())
+
+  healthRecords HealthRecord[]
+}
+
+model HealthRecord {
+  id                        String       @id @default(cuid())
+  employeeId                String
+  employee                  Employee     @relation(fields: [employeeId], references: [id])
+  examRoundId               String
+  examRound                 ExamRound    @relation(fields: [examRoundId], references: [id])
+  status                    RecordStatus @default(PENDING)
+  height                    Float?
+  weight                    Float?
+  bmi                       Float?
+  pulse                     Int?
+  bloodPressureSys          Int?
+  bloodPressureDia          Int?
+  physicalClassification    String?
+  finalClassification       HealthClassification?
+  conclusionText            String?
+  concluderId               String?
+  concluder                 User?        @relation("Concluder", fields: [concluderId], references: [id])
+  concluderSignedAt         DateTime?
+  concluderSignatureDataUrl String?
+  medicalHistoryNote        String?
+  obstetricHistory          String?
+  adminReviewNote           String?
+  reviewedAt                DateTime?
+  finalizedAt               DateTime?
+  createdAt                 DateTime     @default(now())
+  updatedAt                 DateTime     @updatedAt
+
+  clinicalExams ExamClinical[]
+  paraclinicals Paraclinical[]
+
+  @@unique([employeeId, examRoundId])
+}
+
+model ExamClinical {
+  id               String       @id @default(cuid())
+  recordId         String
+  record           HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  specialty        Specialty
+  findings         String?
+  classification   String?
+  extraData        String?
+  doctorId         String?
+  doctor           User?        @relation("DoctorExam", fields: [doctorId], references: [id])
+  signedAt         DateTime?
+  signatureDataUrl String?
+  updatedAt        DateTime     @updatedAt
 
   @@unique([recordId, specialty])
 }
 
-// ============ KHÁM CẬN LÂM SÀNG ============
 model Paraclinical {
-  id        String   @id @default(cuid())
-  recordId  String
-  record    HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  category  String   // "Huyết học", "Sinh hóa", "X-quang"...
-  testName  String
-  result    String?
-  note      String?
-  evaluation String? // Đánh giá
-  fileUrl   String?  // đính kèm file scan nếu có
-  createdAt DateTime @default(now())
+  id         String       @id @default(cuid())
+  recordId   String
+  record     HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  category   String
+  testName   String
+  result     String?
+  note       String?
+  evaluation String?
+  fileUrl    String?
+  createdAt  DateTime     @default(now())
 }
 
-// ============ AUDIT LOG ============
 model AuditLog {
   id        String   @id @default(cuid())
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
-  action    String   // LOGIN, CREATE_EMPLOYEE, SIGN_EXAM, CONCLUDE, ...
-  target    String?  // ID của đối tượng
-  detail    String?  // JSON mô tả thêm
+  action    String
+  target    String?
+  detail    String?
   createdAt DateTime @default(now())
 }
