@@ -355,29 +355,46 @@ export default async function PrintRecord({ params }: { params: { id: string } }
           <div className="border border-black p-2 text-sm">
             <p className="italic text-xs">Xét nghiệm huyết học/sinh hóa/X-quang và các xét nghiệm khác khi có chỉ định của bác sỹ:</p>
             <p className="mt-2"><strong>a) Kết quả:</strong></p>
-            {record.paraclinicals.length > 0 ? (
-              <ul className="list-disc pl-5 mt-1">
-                {record.paraclinicals.map((p) => (
-                  <li key={p.id}>
-                    <strong>{p.category}</strong> - {p.testName}: {p.result}
-                    {p.evaluation && <em> ({p.evaluation})</em>}
-                    {p.fileUrl && <span className="text-xs text-slate-500"> [có file đính kèm]</span>}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-sm">
-                <p>- Công thức máu: ...........................................................</p>
-                <p>- Sinh hoá: ...........................................................</p>
-                <p>- Miễn dịch: ...........................................................</p>
-                <p>- Điện tim: ...........................................................</p>
-                <p>- X-quang: ...........................................................</p>
-                <p>- Siêu âm: ...........................................................</p>
-              </div>
-            )}
+            {(() => {
+              const categories = ['Công thức máu', 'Sinh hoá', 'Miễn dịch', 'Điện tim', 'X-quang', 'Siêu âm'];
+              const grouped: Record<string, typeof record.paraclinicals> = {};
+              for (const cat of categories) grouped[cat] = [];
+              const others: typeof record.paraclinicals = [];
+              for (const p of record.paraclinicals) {
+                if (grouped[p.category]) grouped[p.category].push(p);
+                else others.push(p);
+              }
+              return (
+                <div className="text-sm">
+                  {categories.map((cat) => {
+                    const items = grouped[cat];
+                    const txt = items.length > 0
+                      ? items.map(p => {
+                          let s = p.result ?? '';
+                          if (p.testName && p.testName !== cat) s = `${p.testName}: ${s}`;
+                          return s;
+                        }).filter(Boolean).join('; ')
+                      : '';
+                    return (
+                      <p key={cat}>
+                        - {cat}: <span>{txt || '...........................................................'}</span>
+                      </p>
+                    );
+                  })}
+                  {others.length > 0 && others.map((p) => (
+                    <p key={p.id}>- {p.category}{p.testName && p.testName !== p.category && ` (${p.testName})`}: {p.result}</p>
+                  ))}
+                  {record.paraclinicals.some(p => p.fileUrl) && (
+                    <p className="italic text-xs text-slate-500 mt-2 no-print">
+                      📎 {record.paraclinicals.filter(p => p.fileUrl).length} file kết quả đính kèm (xem trên hệ thống)
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
             <p className="mt-2"><strong>b) Đánh giá:</strong></p>
-            <div className="border-b border-dashed border-slate-400 min-h-[2em] px-2">
-              {record.paraclinicals.filter(p => p.evaluation).map(p => p.evaluation).join('. ')}
+            <div className="border-b border-dashed border-slate-400 min-h-[2em] px-2 whitespace-pre-wrap">
+              {record.paraclinicals.filter(p => p.evaluation).map(p => `${p.category}: ${p.evaluation}`).join('. ')}
             </div>
           </div>
 

@@ -222,6 +222,7 @@ model Paraclinical {
   note       String?
   evaluation String?
   fileUrl    String?
+  fileName   String?
   createdAt  DateTime     @default(now())
 }
 

@@ -47,8 +47,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: { ro
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-slate-800">Báo cáo thống kê</h1>
+        <a
+          href={`/api/admin/reports/export?round=${roundId}`}
+          className="btn-primary"
+          title="Xuất báo cáo tổng thể Excel 4 sheet (Tổng quan, Theo khoa, Chi tiết, Bất thường)"
+        >
+          📊 Export báo cáo tổng thể (Excel)
+        </a>
       </div>
 
       <form className="card flex gap-3 items-end">
