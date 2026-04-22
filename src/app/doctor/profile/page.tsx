@@ -8,6 +8,7 @@ export default async function DoctorProfilePage() {
     <DoctorProfileClient
       fullName={user?.fullName ?? ''}
       email={user?.email ?? ''}
+      jobTitle={user?.jobTitle ?? ''}
       savedSignature={user?.signatureDataUrl ?? null}
     />
   );

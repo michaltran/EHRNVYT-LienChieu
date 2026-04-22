@@ -11,7 +11,7 @@ export default function UsersClient({ users, departments }: { users: U[]; depart
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
     email: '', password: '', fullName: '', role: 'DOCTOR',
-    departmentId: '', specialties: [] as string[],
+    departmentId: '', specialties: [] as string[], jobTitle: '',
   });
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function UsersClient({ users, departments }: { users: U[]; depart
     setLoading(false);
     if (res.ok) {
       setShowForm(false);
-      setForm({ email: '', password: '', fullName: '', role: 'DOCTOR', departmentId: '', specialties: [] });
+      setForm({ email: '', password: '', fullName: '', role: 'DOCTOR', departmentId: '', specialties: [], jobTitle: '' });
       router.refresh();
     } else setErr((await res.json()).error || 'Lỗi');
   }
@@ -81,6 +81,13 @@ export default function UsersClient({ users, departments }: { users: U[]; depart
                 <option value="EMPLOYEE">Nhân viên</option>
               </select>
             </div>
+            {(form.role === 'DOCTOR' || form.role === 'CONCLUDER') && (
+              <div className="col-span-2"><label className="label">Chức danh (hiển thị khi ký)</label>
+                <input className="input" value={form.jobTitle}
+                  placeholder="VD: BS CKI Nội khoa, Giám đốc TTYT..."
+                  onChange={(e) => setForm({ ...form, jobTitle: e.target.value })} />
+              </div>
+            )}
             {(form.role === 'DEPT_REP' || form.role === 'EMPLOYEE') && (
               <div className="col-span-2"><label className="label">Khoa / Phòng</label>
                 <select className="input" value={form.departmentId}

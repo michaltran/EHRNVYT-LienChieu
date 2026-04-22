@@ -31,14 +31,18 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-slate-100 p-6">
+    <div className="min-h-screen flex items-center justify-center bg-brand-gradient-light p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3"
+            style={{ background: 'linear-gradient(135deg, #1E73BE 0%, #134B82 100%)' }}>
+            <span className="text-white text-2xl">⚕</span>
+          </div>
           <h1 className="text-2xl font-bold text-slate-800">TTYT khu vực Liên Chiểu</h1>
           <p className="text-slate-600 mt-1">Hệ thống quản lý hồ sơ sức khỏe định kỳ</p>
         </div>
 
-        <form onSubmit={submit} className="card space-y-4">
+        <form onSubmit={submit} className="card-accent space-y-4">
           <div>
             <label className="label">Email</label>
             <input
@@ -65,6 +69,10 @@ export default function LoginPage() {
           <p>• Bác sĩ: bs.noikhoa@lienchieu.vn / doctor123</p>
           <p>• Kết luận (Giám đốc): giamdoc@lienchieu.vn / conclude123</p>
         </div>
+
+        <p className="text-center text-xs text-slate-400 italic mt-6">
+          Software Copyright Powered by Dat Dat
+        </p>
       </div>
     </div>
   );

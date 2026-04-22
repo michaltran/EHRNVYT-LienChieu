@@ -8,6 +8,7 @@ export default async function ConcluderProfilePage() {
     <DoctorProfileClient
       fullName={user?.fullName ?? ''}
       email={user?.email ?? ''}
+      jobTitle={user?.jobTitle ?? ''}
       savedSignature={user?.signatureDataUrl ?? null}
     />
   );

@@ -12,7 +12,7 @@ export default async function ConcluderDetail({ params }: { params: { id: string
     include: {
       employee: { include: { department: true } },
       examRound: true,
-      clinicalExams: { include: { doctor: { select: { fullName: true } } }, orderBy: { specialty: 'asc' } },
+      clinicalExams: { include: { doctor: { select: { fullName: true, jobTitle: true } } }, orderBy: { specialty: 'asc' } },
       paraclinicals: true,
     },
   });
@@ -39,7 +39,8 @@ export default async function ConcluderDetail({ params }: { params: { id: string
           specialty: ce.specialty,
           findings: ce.findings,
           classification: ce.classification,
-          doctorName: ce.doctor?.fullName ?? null,
+          doctorName: ce.doctorNameSnapshot ?? ce.doctor?.fullName ?? null,
+          doctorTitle: ce.doctorTitleSnapshot ?? ce.doctor?.jobTitle ?? null,
           signedAt: ce.signedAt?.toISOString() ?? null,
         })),
         status: record.status,

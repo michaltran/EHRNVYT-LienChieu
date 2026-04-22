@@ -8,6 +8,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const data = await req.json();
     if (!data.signatureDataUrl) return NextResponse.json({ error: 'Thiếu chữ ký' }, { status: 400 });
 
+    const user = await prisma.user.findUnique({ where: { id: s.sub } });
+
     await prisma.healthRecord.update({
       where: { id: params.id },
       data: {
@@ -16,13 +18,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         concluderId: s.sub,
         concluderSignedAt: new Date(),
         concluderSignatureDataUrl: data.signatureDataUrl,
+        concluderNameSnapshot: user?.fullName,
+        concluderTitleSnapshot: user?.jobTitle,
         status: 'COMPLETED',
         finalizedAt: new Date(),
       },
     });
 
-    // Lưu chữ ký mẫu nếu chưa có
-    const user = await prisma.user.findUnique({ where: { id: s.sub } });
     if (user && !user.signatureDataUrl) {
       await prisma.user.update({
         where: { id: s.sub }, data: { signatureDataUrl: data.signatureDataUrl },

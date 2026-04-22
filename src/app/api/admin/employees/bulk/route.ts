@@ -27,45 +27,44 @@ export async function POST(req: Request) {
         deptCache[r.department] = deptId;
       }
 
-      const dob = r.birthYear ? new Date(r.birthYear, 0, 1) : null;
+      const dob = r.dateOfBirth ? new Date(r.dateOfBirth)
+        : r.birthYear ? new Date(r.birthYear, 0, 1)
+        : null;
 
-      // Tìm theo fullName + departmentId để tránh trùng
+      const payload = {
+        gender: r.gender,
+        dateOfBirth: dob,
+        departmentId: deptId,
+        position: r.position ?? null,
+        qualification: r.qualification ?? null,
+        jobTitle: r.jobTitle ?? null,
+        employmentType: r.employmentType ?? null,
+        idNumber: r.idNumber ?? null,
+        idIssuedDate: r.idIssuedDate ? new Date(r.idIssuedDate) : null,
+        idIssuedPlace: r.idIssuedPlace ?? null,
+        currentAddress: r.currentAddress ?? null,
+        phone: r.phone ?? null,
+        occupation: r.occupation ?? null,
+        workplace: r.workplace ?? 'Trung tâm Y tế khu vực Liên Chiểu',
+        startWorkingDate: r.startWorkingDate ? new Date(r.startWorkingDate) : null,
+        familyHistory: r.familyHistory ?? null,
+      };
+
       const existing = await prisma.employee.findFirst({
         where: { fullName: r.fullName, departmentId: deptId },
       });
+
       if (existing) {
-        await prisma.employee.update({
-          where: { id: existing.id },
-          data: {
-            gender: r.gender,
-            dateOfBirth: dob,
-            position: r.position,
-            qualification: r.qualification,
-            jobTitle: r.jobTitle,
-            employmentType: r.employmentType,
-          },
-        });
+        await prisma.employee.update({ where: { id: existing.id }, data: payload });
         updated++;
       } else {
-        await prisma.employee.create({
-          data: {
-            fullName: r.fullName,
-            gender: r.gender,
-            dateOfBirth: dob,
-            departmentId: deptId,
-            position: r.position,
-            qualification: r.qualification,
-            jobTitle: r.jobTitle,
-            employmentType: r.employmentType,
-            workplace: 'Trung tâm Y tế khu vực Liên Chiểu',
-          },
-        });
+        await prisma.employee.create({ data: { fullName: r.fullName, ...payload } });
         created++;
       }
     }
 
     return NextResponse.json({ created, updated, skipped });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Lỗi' }, { status: 500 });
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

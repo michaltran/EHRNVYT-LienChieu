@@ -47,6 +47,12 @@ export default async function AdminRecordDetail({ params }: { params: { id: stri
         conclusionText: record.conclusionText,
         concluderName: record.concluder?.fullName ?? null,
         concluderSignedAt: record.concluderSignedAt?.toISOString() ?? null,
+        employeeSignatureDataUrl: record.employeeSignatureDataUrl,
+        employeeSignedAt: record.employeeSignedAt?.toISOString() ?? null,
+        bookMakerSignatureDataUrl: record.bookMakerSignatureDataUrl,
+        bookMakerSignedAt: record.bookMakerSignedAt?.toISOString() ?? null,
+        bookMakerName: record.bookMakerName,
+        bookMakerTitle: record.bookMakerTitle,
       }}
     />
   );

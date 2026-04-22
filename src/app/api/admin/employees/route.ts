@@ -12,6 +12,8 @@ export async function POST(req: Request) {
         gender: data.gender,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
         idNumber: data.idNumber || null,
+        idIssuedDate: data.idIssuedDate ? new Date(data.idIssuedDate) : null,
+        idIssuedPlace: data.idIssuedPlace || null,
         phone: data.phone || null,
         currentAddress: data.currentAddress || null,
         occupation: data.occupation || null,
@@ -24,6 +26,8 @@ export async function POST(req: Request) {
         jobTitle: data.jobTitle || null,
         photoUrl: data.photoUrl || null,
         familyHistory: data.familyHistory || null,
+        previousJobs: data.previousJobs || null,
+        personalHistory: data.personalHistory || null,
       },
     });
     return NextResponse.json(e);

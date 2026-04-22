@@ -7,6 +7,8 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============ ENUMS (phải nằm trước tất cả model) ============
+
 enum Role {
   ADMIN
   DOCTOR
@@ -60,6 +62,8 @@ enum Specialty {
   RANG_HAM_MAT
 }
 
+// ============ MODELS ============
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -67,6 +71,7 @@ model User {
   fullName         String
   role             Role      @default(EMPLOYEE)
   specialties      String?
+  jobTitle         String?
   signatureDataUrl String?
   departmentId     String?
   department       Department? @relation(fields: [departmentId], references: [id])
@@ -141,6 +146,8 @@ model HealthRecord {
   examRoundId               String
   examRound                 ExamRound             @relation(fields: [examRoundId], references: [id])
   status                    RecordStatus          @default(PENDING)
+
+  // Phần II. Thể lực
   height                    Float?
   weight                    Float?
   bmi                       Float?
@@ -148,17 +155,35 @@ model HealthRecord {
   bloodPressureSys          Int?
   bloodPressureDia          Int?
   physicalClassification    String?
+
+  // Phần V. Kết luận
   finalClassification       HealthClassification?
   conclusionText            String?
   concluderId               String?
   concluder                 User?                 @relation("Concluder", fields: [concluderId], references: [id])
   concluderSignedAt         DateTime?
   concluderSignatureDataUrl String?
+  concluderNameSnapshot     String?
+  concluderTitleSnapshot    String?
+
+  // Tiền sử bệnh do bác sĩ khám ghi (phần I)
   medicalHistoryNote        String?
   obstetricHistory          String?
+
+  // Chữ ký người lao động xác nhận hồ sơ
+  employeeSignatureDataUrl  String?
+  employeeSignedAt          DateTime?
+
+  // Chữ ký người lập sổ KSK định kỳ
+  bookMakerSignatureDataUrl String?
+  bookMakerSignedAt         DateTime?
+  bookMakerName             String?
+  bookMakerTitle            String?
+
   adminReviewNote           String?
   reviewedAt                DateTime?
   finalizedAt               DateTime?
+
   createdAt                 DateTime              @default(now())
   updatedAt                 DateTime              @updatedAt
 
@@ -169,18 +194,20 @@ model HealthRecord {
 }
 
 model ExamClinical {
-  id               String       @id @default(cuid())
-  recordId         String
-  record           HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
-  specialty        Specialty
-  findings         String?
-  classification   String?
-  extraData        String?
-  doctorId         String?
-  doctor           User?        @relation("DoctorExam", fields: [doctorId], references: [id])
-  signedAt         DateTime?
-  signatureDataUrl String?
-  updatedAt        DateTime     @updatedAt
+  id                  String       @id @default(cuid())
+  recordId            String
+  record              HealthRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  specialty           Specialty
+  findings            String?
+  classification      String?
+  extraData           String?
+  doctorId            String?
+  doctor              User?        @relation("DoctorExam", fields: [doctorId], references: [id])
+  signedAt            DateTime?
+  signatureDataUrl    String?
+  doctorNameSnapshot  String?
+  doctorTitleSnapshot String?
+  updatedAt           DateTime     @updatedAt
 
   @@unique([recordId, specialty])
 }

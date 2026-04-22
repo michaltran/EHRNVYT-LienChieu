@@ -24,15 +24,18 @@ export default function SetupClient({ userCount }: { userCount: number }) {
   return (
     <div className="bg-white rounded-lg border border-slate-200 p-5">
       <h2 className="font-semibold mb-2">Bước khởi tạo</h2>
-      <p className="text-sm text-slate-600 mb-4">Bấm nút dưới để tạo:</p>
+      <p className="text-sm text-slate-600 mb-4">
+        Bấm nút dưới để tạo sẵn:
+      </p>
       <ul className="text-sm text-slate-700 list-disc list-inside mb-4 space-y-1">
         <li>8 tài khoản demo (admin, giám đốc, 6 bác sĩ chuyên khoa)</li>
         <li>1 đợt khám mẫu cho năm hiện tại</li>
+        <li>Các khoa/phòng cơ bản (nếu chưa có)</li>
       </ul>
 
       {userCount > 0 && !result && (
         <div className="text-sm bg-amber-50 border border-amber-200 p-3 rounded mb-3">
-          ⚠️ Database đã có {userCount} tài khoản. Bấm lại chỉ bổ sung tài khoản còn thiếu.
+          ⚠️ Database đã có {userCount} tài khoản. Bấm lại sẽ không ghi đè, chỉ bổ sung tài khoản còn thiếu.
         </div>
       )}
 
@@ -55,7 +58,7 @@ export default function SetupClient({ userCount }: { userCount: number }) {
           <div className="font-semibold text-green-800">✅ Khởi tạo thành công!</div>
           <div>Tài khoản đã tạo: <strong>{result.created}</strong></div>
           <div className="mt-3">
-            <div className="font-medium mb-1">Đăng nhập với:</div>
+            <div className="font-medium mb-1">Đăng nhập với một trong các tài khoản sau:</div>
             <div className="bg-white p-3 rounded border border-green-100 font-mono text-xs space-y-1">
               <div>admin@lienchieu.vn / admin123</div>
               <div>giamdoc@lienchieu.vn / conclude123</div>
