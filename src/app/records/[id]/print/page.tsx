@@ -462,18 +462,19 @@ export default async function PrintRecord({ params }: { params: { id: string } }
               <div className="italic text-sm">(Ký, ghi rõ họ tên và đóng dấu)</div>
               <div style={{ minHeight: 70, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                 {record.concluderSignedAt && (
-                  /* Con dấu điện tử overlay 1/3 chữ ký */
+                  /* Con dấu đỏ - đè 1/3 chữ ký bên TRÁI (chuẩn dấu hành chính VN) */
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
                     src="/assets/images/stamp.png"
                     alt="Con dấu"
                     style={{
                       position: 'absolute',
-                      width: 110, height: 110,
-                      left: '60%', top: '15%',
-                      opacity: 0.85,
+                      width: 130, height: 130,
+                      left: '5%', top: '20%',
+                      opacity: 0.92,
                       pointerEvents: 'none',
-                      zIndex: 1,
+                      zIndex: 2,
+                      mixBlendMode: 'multiply',
                     }}
                   />
                 )}

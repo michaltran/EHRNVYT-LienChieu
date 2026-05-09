@@ -361,11 +361,12 @@ export default async function BookRecord({ params }: { params: { id: string } })
               alt="Con dấu"
               style={{
                 position: 'absolute',
-                width: 90, height: 90,
-                right: '5%', top: '40%',
-                opacity: 0.85,
+                width: 110, height: 110,
+                left: '5%', top: '35%',
+                opacity: 0.92,
                 pointerEvents: 'none',
-                zIndex: 1,
+                zIndex: 2,
+                mixBlendMode: 'multiply',
               }}
             />
           )}

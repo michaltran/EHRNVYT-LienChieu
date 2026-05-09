@@ -5,7 +5,13 @@ const SECRET = new TextEncoder().encode(
   process.env.AUTH_SECRET || 'dev-secret-change-me-in-production-please-min32'
 );
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/setup', '/api/setup', '/api/smartca/webhook', '/_next', '/favicon.ico'];
+const PUBLIC_PATHS = [
+  '/login', '/api/auth/login',
+  '/setup', '/api/setup',
+  '/api/smartca/webhook',
+  '/_next', '/favicon.ico',
+  '/assets', // ảnh logo, con dấu, ...
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
