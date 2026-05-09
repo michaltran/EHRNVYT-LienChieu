@@ -11,6 +11,7 @@ const PUBLIC_PATHS = [
   '/api/smartca/webhook',
   '/_next', '/favicon.ico',
   '/assets', // ảnh logo, con dấu, ...
+  '/privacy', '/terms', // trang công khai
 ];
 
 export async function middleware(req: NextRequest) {

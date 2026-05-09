@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Footer from '@/components/Footer';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,7 +32,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-brand-gradient-light p-6">
+    <div className="min-h-screen flex flex-col bg-brand-gradient-light">
+      <div className="flex-1 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3"
@@ -67,10 +69,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-400 italic mt-6">
-          Software Copyright Powered by Dat Dat
-        </p>
       </div>
+      </div>
+      <Footer />
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import Footer from './Footer';
 
 type NavItem = { href: string; label: string; icon?: string };
 
@@ -158,10 +159,8 @@ export default function AppShell({
 
         <div className="flex-1 p-3 md:p-6 overflow-x-hidden">
           {children}
-          <div className="mt-8 pt-4 border-t border-slate-200 text-center text-xs text-slate-400 italic">
-            Software Copyright Powered by Dat Dat
-          </div>
         </div>
+        <Footer />
       </main>
     </div>
   );
