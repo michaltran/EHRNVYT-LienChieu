@@ -6,14 +6,28 @@ import PrintButton from './print-button';
 import BackButton from '@/components/BackButton';
 import type { Metadata } from 'next';
 
+function vnToAscii(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')   // bỏ dấu thanh combining marks
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .replace(/[^A-Za-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '_')
+    .slice(0, 60);
+}
+
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const r = await prisma.healthRecord.findUnique({
     where: { id: params.id },
     select: { employee: { select: { fullName: true } }, examRound: { select: { year: true } } },
   });
-  if (!r) return { title: 'Sổ KSK' };
-  const safeName = r.employee.fullName.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').slice(0, 60);
-  return { title: `So_KSK_${safeName}_${r.examRound.year}` };
+  if (!r) return { title: 'So_KSK' };
+  const safeName = vnToAscii(r.employee.fullName);
+  return {
+    title: `So_KSK_${safeName}_${r.examRound.year}`,
+    // Override metadataBase fallback nếu có
+  };
 }
 
 // Parse extraData an toàn
@@ -135,7 +149,7 @@ export default async function PrintRecord({ params }: { params: { id: string } }
           >
             📖 Xem dạng quyển sách
           </a>
-          <PrintButton />
+          <PrintButton docTitle={`So_KSK_${vnToAscii(record.employee.fullName)}_${record.examRound.year}`} />
         </div>
       </div>
 
