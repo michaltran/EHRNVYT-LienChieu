@@ -21,18 +21,59 @@ export default function EmployeesClient({
 }) {
   const router = useRouter();
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  function toggleSelect(id: string) {
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelected(next);
+  }
+  function toggleAll() {
+    if (selected.size === employees.length) setSelected(new Set());
+    else setSelected(new Set(employees.map((e) => e.id)));
+  }
 
   async function removeEmployee(id: string, name: string) {
-    if (!confirm(`Xóa nhân viên "${name}"? Hành động này không thể khôi phục.`)) return;
+    if (!confirm(`Xóa nhân viên "${name}"?\n\nNếu NV đã có hồ sơ khám → toàn bộ hồ sơ + kết quả khám sẽ bị xóa theo.`)) return;
     setDeleting(id);
     const res = await fetch(`/api/admin/employees/${id}`, { method: 'DELETE' });
     setDeleting(null);
     if (res.ok) {
+      const next = new Set(selected); next.delete(id); setSelected(next);
       router.refresh();
     } else {
       const data = await res.json();
-      alert('Không xóa được: ' + (data.error || 'lỗi') + '\n(Có thể nhân viên này đã có hồ sơ khám — cần xóa hồ sơ trước)');
+      // Fallback: dùng bulk-delete để cascade
+      if (confirm('Lỗi xóa đơn lẻ: ' + (data.error || '') + '\n\nDùng cách xóa cascade (xóa cả hồ sơ liên quan)?')) {
+        const r2 = await fetch('/api/admin/employees/bulk', {
+          method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [id] }),
+        });
+        const d2 = await r2.json();
+        if (r2.ok) router.refresh();
+        else alert('Vẫn lỗi: ' + (d2.error || 'không rõ'));
+      }
     }
+  }
+
+  async function removeBulk() {
+    if (selected.size === 0) return;
+    const names = employees.filter((e) => selected.has(e.id)).slice(0, 5).map((e) => e.fullName).join(', ');
+    const more = selected.size > 5 ? `, và ${selected.size - 5} người khác` : '';
+    if (!confirm(`Xóa ${selected.size} nhân viên: ${names}${more}?\n\n⚠️ Toàn bộ hồ sơ khám + kết quả của họ sẽ bị xóa theo. Hành động không thể khôi phục.`)) return;
+    setBulkDeleting(true);
+    const res = await fetch('/api/admin/employees/bulk', {
+      method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: Array.from(selected) }),
+    });
+    const data = await res.json();
+    setBulkDeleting(false);
+    if (res.ok) {
+      alert(`✅ ${data.message}`);
+      setSelected(new Set());
+      router.refresh();
+    } else alert('❌ ' + (data.error || 'Lỗi'));
   }
 
   // Build query string cho export (giữ filter hiện tại)
@@ -70,25 +111,49 @@ export default function EmployeesClient({
         </div>
       </div>
 
-      <form className="card flex gap-3 items-end">
+      <form className="card flex flex-col md:flex-row gap-3 md:items-end">
         <div className="flex-1">
           <label className="label">Tìm theo tên</label>
           <input name="q" defaultValue={currentQ} className="input" placeholder="Ví dụ: Nguyễn Thành Tân" />
         </div>
-        <div className="w-64">
+        <div className="md:w-64">
           <label className="label">Khoa / Phòng</label>
           <select name="dept" defaultValue={currentDept} className="input">
             <option value="">-- Tất cả --</option>
             {departments.map((d) => (<option key={d.id} value={d.id}>{d.name}</option>))}
           </select>
         </div>
-        <button type="submit" className="btn-primary">Lọc</button>
+        <button type="submit" className="btn-primary w-full md:w-auto">Lọc</button>
       </form>
+
+      {selected.size > 0 && (
+        <div className="card bg-amber-50 border-amber-300 flex items-center justify-between flex-wrap gap-2 sticky top-2 z-20">
+          <div className="text-sm">
+            <strong>Đã chọn {selected.size} nhân viên</strong>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setSelected(new Set())} className="btn-secondary text-sm">Bỏ chọn</button>
+            <button onClick={removeBulk} disabled={bulkDeleting} className="btn-danger text-sm">
+              {bulkDeleting ? 'Đang xóa...' : `🗑️ Xóa ${selected.size} nhân viên (kèm hồ sơ)`}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="card p-0 overflow-auto">
         <table className="table-simple">
           <thead>
             <tr>
+              <th className="w-10">
+                <input
+                  type="checkbox"
+                  checked={selected.size > 0 && selected.size === employees.length}
+                  ref={(el) => { if (el) el.indeterminate = selected.size > 0 && selected.size < employees.length; }}
+                  onChange={toggleAll}
+                  className="cursor-pointer"
+                  title="Chọn tất cả"
+                />
+              </th>
               <th>Ảnh</th>
               <th>Họ tên</th>
               <th>Giới tính</th>
@@ -101,39 +166,48 @@ export default function EmployeesClient({
           </thead>
           <tbody>
             {employees.map((e) => (
-              <tr key={e.id} className="hover:bg-slate-50">
+              <tr
+                key={e.id}
+                onClick={() => router.push(`/admin/employees/${e.id}`)}
+                className={`cursor-pointer ${selected.has(e.id) ? 'bg-amber-50/60' : ''}`}
+              >
+                <td onClick={(ev) => ev.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(e.id)}
+                    onChange={() => toggleSelect(e.id)}
+                    className="cursor-pointer"
+                  />
+                </td>
                 <td>
                   {e.photoUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={e.photoUrl} alt="" className="h-10 w-10 rounded object-cover" />
+                    <img src={e.photoUrl} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-brand-100" />
                   ) : (
-                    <div className="h-10 w-10 rounded bg-slate-100 flex items-center justify-center text-xs text-slate-400">
+                    <div className="h-11 w-11 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 flex items-center justify-center text-sm font-bold text-brand-700 ring-2 ring-brand-100">
                       {e.fullName.split(' ').pop()?.[0] ?? '?'}
                     </div>
                   )}
                 </td>
-                <td className="font-medium">{e.fullName}</td>
-                <td>{e.gender === 'MALE' ? 'Nam' : e.gender === 'FEMALE' ? 'Nữ' : ''}</td>
+                <td className="font-semibold text-slate-800">{e.fullName}</td>
+                <td>{e.gender === 'MALE' ? '👨 Nam' : e.gender === 'FEMALE' ? '👩 Nữ' : ''}</td>
                 <td>{e.birthYear ?? ''}</td>
-                <td>{e.position ?? ''}</td>
-                <td>{e.department}</td>
-                <td><span className="badge bg-slate-100 text-slate-700">{e.employmentType ?? ''}</span></td>
-                <td className="text-right space-x-3">
-                  <Link href={`/admin/employees/${e.id}`} className="text-brand-600 hover:underline text-sm">
-                    Sửa
-                  </Link>
+                <td className="text-slate-600">{e.position ?? ''}</td>
+                <td className="text-slate-600">{e.department}</td>
+                <td><span className="badge-slate">{e.employmentType ?? ''}</span></td>
+                <td className="text-right" onClick={(ev) => ev.stopPropagation()}>
                   <button
                     onClick={() => removeEmployee(e.id, e.fullName)}
                     disabled={deleting === e.id}
-                    className="text-red-600 hover:underline text-sm disabled:opacity-50"
+                    className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-sm disabled:opacity-50 transition"
                   >
-                    {deleting === e.id ? 'Đang xóa...' : 'Xóa'}
+                    {deleting === e.id ? '...' : '🗑️ Xóa'}
                   </button>
                 </td>
               </tr>
             ))}
             {employees.length === 0 && (
-              <tr><td colSpan={8} className="text-center text-slate-500 py-8">Chưa có nhân viên nào</td></tr>
+              <tr><td colSpan={9} className="text-center text-slate-500 py-8">Chưa có nhân viên nào</td></tr>
             )}
           </tbody>
         </table>

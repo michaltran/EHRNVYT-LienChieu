@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { saveFile } from '@/lib/local-storage';
 
 // Giới hạn kích thước file (10MB)
 const MAX_SIZE = 10 * 1024 * 1024;
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
     // Validate: KTV chỉ được nhập hạng mục thuộc chuyên môn của mình
     const XN = ['Công thức máu', 'Sinh hoá', 'Miễn dịch'];
-    const CDHA = ['Điện tim', 'X-quang', 'Siêu âm'];
+    const CDHA = ['Điện tim', 'Điện não', 'X-quang', 'Siêu âm', 'CT'];
     if (session.role === 'KTV_XETNGHIEM' && !XN.includes(category)) {
       return NextResponse.json({
         error: `KTV Xét nghiệm không được nhập hạng mục "${category}". Liên hệ KTV Chẩn đoán hình ảnh.`,
@@ -50,24 +50,16 @@ export async function POST(req: Request) {
     let fileUrl: string | null = null;
     let fileName: string | null = null;
 
-    // Upload file lên Vercel Blob nếu có
+    // Lưu file vào storage local
     if (file && file.size > 0) {
       if (file.size > MAX_SIZE) {
         return NextResponse.json({ error: 'File vượt quá 10MB' }, { status: 400 });
       }
-
-      // Nếu không có token → lưu base64 vào DB (fallback cho dev local)
-      if (!process.env.BLOB_READ_WRITE_TOKEN) {
-        const buf = Buffer.from(await file.arrayBuffer());
-        fileUrl = `data:${file.type};base64,${buf.toString('base64')}`;
-        fileName = file.name;
-      } else {
-        const ext = file.name.split('.').pop() || 'bin';
-        const safeName = `paraclinical/${recordId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-        const blob = await put(safeName, file, { access: 'public' });
-        fileUrl = blob.url;
-        fileName = file.name;
-      }
+      const ext = file.name.split('.').pop() || 'bin';
+      const safeName = `paraclinical/${recordId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const buf = Buffer.from(await file.arrayBuffer());
+      fileUrl = await saveFile(safeName, buf);
+      fileName = file.name;
     }
 
     const created = await prisma.paraclinical.create({

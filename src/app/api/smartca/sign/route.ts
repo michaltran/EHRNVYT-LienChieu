@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { requestSignTh, confirmSignTh } from '@/lib/vnpt-smartca';
-import { decrypt, generateTotp } from '@/lib/crypto-utils';
+import { decrypt, generateTotpCandidates } from '@/lib/crypto-utils';
 
 /**
  * POST /api/smartca/sign
@@ -28,10 +28,12 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    const { targetType, targetId, payload, description } = await req.json();
+    const { targetType, targetId, payload, description, signatureImageDataUrl } = await req.json();
     if (!targetType || !targetId || !payload) {
       return NextResponse.json({ error: 'Thiếu tham số' }, { status: 400 });
     }
+    // Ảnh chữ ký mẫu để hiển thị cùng dấu CA
+    const sigImage: string | null = signatureImageDataUrl || user.signatureDataUrl || null;
 
     // Decrypt password và TOTP secret
     let password: string, totpSecret: string;
@@ -42,31 +44,54 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Lỗi giải mã credentials, vui lòng kích hoạt lại SmartCA' }, { status: 500 });
     }
 
-    // Sinh OTP từ TOTP secret
-    const otp = generateTotp(totpSecret);
-
     // Hash payload
     const hash = crypto.createHash('sha256').update(payload).digest('hex');
     const docId = `${targetType}_${targetId.slice(0, 12).replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
-    const txId = `KSK_${s.sub.slice(0, 8)}_${Date.now()}`;
 
-    // Bước 1: sign → nhận SAD
-    let signResp;
-    try {
-      signResp = await requestSignTh({
-        userCccd: user.caUserId,
-        userPassword: password,
-        otp,
-        transactionId: txId,
-        transactionDesc: description || `Ký sổ KSK - ${user.fullName}`,
-        serialNumber: user.caSerialNumber,
-        files: [{ doc_id: docId, data_to_be_signed: hash, file_type: 'pdf', sign_type: 'hash' }],
-      });
-    } catch (e: any) {
+    // Bước 1: sign → thử lần lượt từng OTP candidate đến khi VNPT chấp nhận
+    const otpCandidates = generateTotpCandidates(totpSecret);
+    if (otpCandidates.length === 0) {
+      return NextResponse.json({ error: 'Không sinh được OTP từ TOTP secret' }, { status: 500 });
+    }
+
+    let signResp: any = null;
+    let workingFormat = '';
+    const errors: string[] = [];
+    for (const cand of otpCandidates) {
+      const txId = `KSK_${s.sub.slice(0, 8)}_${Date.now()}_${cand.name.slice(0, 4)}`;
+      try {
+        signResp = await requestSignTh({
+          userCccd: user.caUserId,
+          userPassword: password,
+          otp: cand.otp,
+          transactionId: txId,
+          transactionDesc: description || `Ký sổ KSK - ${user.fullName}`,
+          serialNumber: user.caSerialNumber,
+          files: [{ doc_id: docId, data_to_be_signed: hash, file_type: 'pdf', sign_type: 'hash' }],
+        });
+        workingFormat = cand.name;
+        break; // OK
+      } catch (e: any) {
+        const msg = e.message || String(e);
+        errors.push(`[${cand.name}] ${msg}`);
+        // Nếu là lỗi không phải OTP (vd password sai, account khoá, ...) thì dừng luôn không thử tiếp
+        const lower = msg.toLowerCase();
+        const isOtpError = lower.includes('otp') || lower.includes('credential');
+        if (!isOtpError) break;
+      }
+    }
+
+    if (!signResp) {
       await prisma.auditLog.create({
-        data: { userId: s.sub, action: 'SMARTCA_TH_SIGN_FAILED', detail: e.message },
+        data: { userId: s.sub, action: 'SMARTCA_TH_SIGN_FAILED', detail: errors.join(' | ').slice(0, 1000) },
       }).catch(() => {});
-      return NextResponse.json({ error: `Lỗi VNPT: ${e.message}` }, { status: 500 });
+      return NextResponse.json({
+        error: `Đã thử ${otpCandidates.length} format TOTP. Lỗi cuối: ${errors[errors.length - 1]}`,
+      }, { status: 500 });
+    }
+
+    if (workingFormat) {
+      console.log(`[SmartCA] User ${user.email} signed with TOTP format: ${workingFormat}`);
     }
 
     // Lưu transaction
@@ -127,14 +152,14 @@ export async function POST(req: Request) {
           create: {
             recordId, specialty,
             signedAt: new Date(),
-            signatureDataUrl: `CA:${signatureValue}`,
+            signatureDataUrl: sigImage ? `CA:${signatureValue}|||IMG:${sigImage}` : `CA:${signatureValue}`,
             doctorId: s.sub,
             doctorNameSnapshot: user.fullName,
             doctorTitleSnapshot: user.jobTitle,
           },
           update: {
             signedAt: new Date(),
-            signatureDataUrl: `CA:${signatureValue}`,
+            signatureDataUrl: sigImage ? `CA:${signatureValue}|||IMG:${sigImage}` : `CA:${signatureValue}`,
             doctorId: s.sub,
             doctorNameSnapshot: user.fullName,
             doctorTitleSnapshot: user.jobTitle,
@@ -145,7 +170,7 @@ export async function POST(req: Request) {
           where: { id: targetId },
           data: {
             signedAt: new Date(),
-            signatureDataUrl: `CA:${signatureValue}`,
+            signatureDataUrl: sigImage ? `CA:${signatureValue}|||IMG:${sigImage}` : `CA:${signatureValue}`,
             doctorId: s.sub,
             doctorNameSnapshot: user.fullName,
             doctorTitleSnapshot: user.jobTitle,

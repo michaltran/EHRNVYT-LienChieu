@@ -69,3 +69,64 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+/** DELETE bulk - body: { ids: string[] } hoặc { departmentId: string } để xóa cả khoa */
+export async function DELETE(req: Request) {
+  try {
+    const s = await requireAuth(['ADMIN']);
+    const { ids, departmentId } = await req.json();
+
+    let targetIds: string[] = Array.isArray(ids) ? ids : [];
+    if (!targetIds.length && departmentId) {
+      const all = await prisma.employee.findMany({
+        where: { departmentId },
+        select: { id: true },
+      });
+      targetIds = all.map((e) => e.id);
+    }
+    if (targetIds.length === 0) {
+      return NextResponse.json({ error: 'Không có nhân viên nào để xóa' }, { status: 400 });
+    }
+
+    // Xóa cascade thủ công: ExamClinical + Paraclinical + HealthRecord + User.employeeId set null + Employee
+    const result = await prisma.$transaction(async (tx) => {
+      const records = await tx.healthRecord.findMany({
+        where: { employeeId: { in: targetIds } },
+        select: { id: true },
+      });
+      const recordIds = records.map((r) => r.id);
+
+      if (recordIds.length > 0) {
+        await tx.examClinical.deleteMany({ where: { recordId: { in: recordIds } } });
+        await tx.paraclinical.deleteMany({ where: { recordId: { in: recordIds } } });
+        await tx.healthRecord.deleteMany({ where: { id: { in: recordIds } } });
+      }
+
+      // Bỏ liên kết User.employeeId nếu có
+      await tx.user.updateMany({
+        where: { employeeId: { in: targetIds } },
+        data: { employeeId: null },
+      });
+
+      const deleted = await tx.employee.deleteMany({ where: { id: { in: targetIds } } });
+      return { deleted: deleted.count, recordsDeleted: recordIds.length };
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: s.sub,
+        action: 'BULK_DELETE_EMPLOYEES',
+        detail: JSON.stringify({ ids: targetIds.slice(0, 50), count: targetIds.length, ...result }),
+      },
+    }).catch(() => {});
+
+    return NextResponse.json({
+      ok: true,
+      deleted: result.deleted,
+      recordsDeleted: result.recordsDeleted,
+      message: `Đã xóa ${result.deleted} nhân viên và ${result.recordsDeleted} hồ sơ liên quan`,
+    });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

@@ -16,6 +16,7 @@ export default async function UsersPage() {
         users={users.map((u) => ({
           id: u.id, email: u.email, fullName: u.fullName, role: u.role,
           specialties: u.specialties, department: u.department?.name ?? null,
+          departmentId: u.departmentId, jobTitle: u.jobTitle,
           isActive: u.isActive,
         }))}
         departments={departments.map((d) => ({ id: d.id, name: d.name }))}

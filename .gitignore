@@ -5,9 +5,24 @@ build/
 dist/
 .env
 .env.local
+.env.*.local
 *.db
 *.db-journal
 prisma/dev.db
 .DS_Store
 .vercel
 .vscode/
+
+# Claude Code worktrees
+.claude/worktrees/
+.claude/projects/
+
+# Runtime data (không push)
+logs/
+backups/
+storage/
+
+# Dữ liệu thật của tổ chức (PII) - không push lên repo
+data/nhan-su.xlsx
+data/*.xlsx
+data/*.csv

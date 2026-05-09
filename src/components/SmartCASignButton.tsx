@@ -24,7 +24,8 @@ export default function SmartCASignButton({
   const [msg, setMsg] = useState('');
 
   async function sign() {
-    setState('signing'); setMsg('Đang ký với VNPT SmartCA...');
+    setState('signing');
+    setMsg('Đang ký với VNPT SmartCA...');
     try {
       const res = await fetch('/api/smartca/sign', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -33,7 +34,7 @@ export default function SmartCASignButton({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Lỗi');
       setState('success');
-      setMsg('✅ Ký thành công');
+      setMsg('✅ Ký số thành công');
       if (onSuccess) onSuccess();
     } catch (e: any) {
       setState('error');

@@ -4,6 +4,17 @@ import { notFound, redirect } from 'next/navigation';
 import { SPECIALTY_LABELS, CLASSIFICATION_LABELS, formatDate } from '@/lib/constants';
 import PrintButton from './print-button';
 import BackButton from '@/components/BackButton';
+import type { Metadata } from 'next';
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const r = await prisma.healthRecord.findUnique({
+    where: { id: params.id },
+    select: { employee: { select: { fullName: true } }, examRound: { select: { year: true } } },
+  });
+  if (!r) return { title: 'Sổ KSK' };
+  const safeName = r.employee.fullName.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').replace(/[^\w\s-]/g, '').replace(/\s+/g, '_').slice(0, 60);
+  return { title: `So_KSK_${safeName}_${r.examRound.year}` };
+}
 
 // Parse extraData an toàn
 function parseExtra(json: string | null | undefined): any {
@@ -11,26 +22,36 @@ function parseExtra(json: string | null | undefined): any {
   try { return JSON.parse(json); } catch { return {}; }
 }
 
+function parseSig(raw?: string | null): { image: string | null; caHash: string | null } {
+  if (!raw) return { image: null, caHash: null };
+  if (raw.startsWith('CA:')) {
+    const sep = raw.indexOf('|||IMG:');
+    if (sep > 0) return { caHash: raw.slice(3, sep), image: raw.slice(sep + 7) };
+    return { caHash: raw.slice(3), image: null };
+  }
+  return { caHash: null, image: raw };
+}
+
 // Render chữ ký bác sĩ trong ô bảng (ảnh nhỏ + tên + chức danh + thời gian)
 function CellSignature({ ex }: { ex: any }) {
   if (!ex?.signatureDataUrl && !ex?.doctorNameSnapshot) return null;
   const time = ex.signedAt ? new Date(ex.signedAt) : null;
-  const sig: string | null = ex.signatureDataUrl;
-  const isCA = sig?.startsWith('CA:');
+  const { image, caHash } = parseSig(ex.signatureDataUrl);
 
   return (
     <div className="text-center">
-      {sig && (
-        isCA ? (
-          <div className="inline-block border border-green-600 bg-green-50 rounded px-2 py-1 text-[9px] text-green-800">
-            <div className="font-bold">✓ VNPT SmartCA</div>
-            <div className="font-mono">#{sig.slice(3, 15)}...</div>
-          </div>
-        ) : (
+      <div className="flex flex-col items-center gap-0.5">
+        {image && (
           /* eslint-disable-next-line @next/next/no-img-element */
-          <img src={sig} alt="" style={{ maxHeight: 40, margin: '0 auto' }} />
-        )
-      )}
+          <img src={image} alt="" style={{ maxHeight: 40 }} />
+        )}
+        {caHash && (
+          <div className="inline-block border border-green-600 bg-green-50 rounded px-1.5 py-0.5 text-[8px] text-green-800 font-bold leading-tight">
+            ✓ SmartCA
+            <span className="font-mono block opacity-70">#{caHash.slice(0, 10)}…</span>
+          </div>
+        )}
+      </div>
       <div className="text-xs font-medium">{ex.doctorNameSnapshot ?? ex.doctor?.fullName}</div>
       {(ex.doctorTitleSnapshot ?? ex.doctor?.jobTitle) && (
         <div className="text-[10px] text-slate-600 italic">{ex.doctorTitleSnapshot ?? ex.doctor?.jobTitle}</div>
@@ -86,9 +107,36 @@ export default async function PrintRecord({ params }: { params: { id: string } }
 
   return (
     <div className="bg-white">
+      <style>{`
+        /* A4 + Book layout (double-sided) */
+        @page { size: A4; margin: 15mm; }
+        @page :left  { margin-left: 15mm; margin-right: 22mm; }   /* trang trái: lề ngoài rộng để đóng quyển */
+        @page :right { margin-left: 22mm; margin-right: 15mm; }   /* trang phải */
+        @media print {
+          .no-print { display: none !important; }
+          body { background: white !important; }
+          .print-page { box-shadow: none !important; }
+          .page-break { page-break-before: always; }
+          .avoid-break { page-break-inside: avoid; }
+          /* Ẩn viền các ô chữ ký khi in giấy */
+          .sig-cell, .sig-cell td, table.sig-table, table.sig-table td {
+            border: none !important;
+          }
+        }
+        .sig-cell { min-height: 90px; }
+      `}</style>
+
       <div className="no-print bg-slate-100 p-3 flex justify-between items-center sticky top-0 z-10 border-b">
         <BackButton />
-        <PrintButton />
+        <div className="flex gap-2">
+          <a
+            href={`/records/${params.id}/book`}
+            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-sm font-medium"
+          >
+            📖 Xem dạng quyển sách
+          </a>
+          <PrintButton />
+        </div>
       </div>
 
       <div className="print-page mx-auto" style={{
@@ -184,10 +232,10 @@ export default async function PrintRecord({ params }: { params: { id: string } }
         </table>
 
         {/* Chữ ký NLĐ + Người lập sổ */}
-        <table className="w-full border border-black text-sm mt-4" style={{ borderCollapse: 'collapse' }}>
+        <table className="w-full sig-table text-sm mt-4 avoid-break" style={{ borderCollapse: 'collapse' }}>
           <tbody>
             <tr>
-              <td className="border border-black p-3 align-top text-center" style={{ width: '50%' }}>
+              <td className="sig-cell p-3 align-top text-center" style={{ width: '50%' }}>
                 <div className="font-bold">Người lao động xác nhận</div>
                 <div className="italic text-xs">(Ký và ghi rõ họ, tên)</div>
                 <div style={{ minHeight: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -203,7 +251,7 @@ export default async function PrintRecord({ params }: { params: { id: string } }
                   </div>
                 )}
               </td>
-              <td className="border border-black p-3 align-top text-center">
+              <td className="sig-cell p-3 align-top text-center">
                 <div className="italic text-xs">
                   {record.bookMakerSignedAt
                     ? formatDate(record.bookMakerSignedAt)
@@ -362,52 +410,41 @@ export default async function PrintRecord({ params }: { params: { id: string } }
             </tbody>
           </table>
 
-          <h3 className="font-bold mt-4">IV. KHÁM CẬN LÂM SÀNG</h3>
-          <div className="border border-black p-2 text-sm">
-            <p className="italic text-xs">Xét nghiệm huyết học/sinh hóa/X-quang và các xét nghiệm khác khi có chỉ định của bác sỹ:</p>
-            <p className="mt-2"><strong>a) Kết quả:</strong></p>
-            {(() => {
-              const categories = ['Công thức máu', 'Sinh hoá', 'Miễn dịch', 'Điện tim', 'X-quang', 'Siêu âm'];
-              const grouped: Record<string, typeof record.paraclinicals> = {};
-              for (const cat of categories) grouped[cat] = [];
-              const others: typeof record.paraclinicals = [];
-              for (const p of record.paraclinicals) {
-                if (grouped[p.category]) grouped[p.category].push(p);
-                else others.push(p);
-              }
-              return (
-                <div className="text-sm">
-                  {categories.map((cat) => {
-                    const items = grouped[cat];
-                    const txt = items.length > 0
-                      ? items.map(p => {
-                          let s = p.result ?? '';
-                          if (p.testName && p.testName !== cat) s = `${p.testName}: ${s}`;
-                          return s;
-                        }).filter(Boolean).join('; ')
-                      : '';
-                    return (
-                      <p key={cat}>
-                        - {cat}: <span>{txt || '...........................................................'}</span>
-                      </p>
-                    );
-                  })}
-                  {others.length > 0 && others.map((p) => (
-                    <p key={p.id}>- {p.category}{p.testName && p.testName !== p.category && ` (${p.testName})`}: {p.result}</p>
-                  ))}
-                  {record.paraclinicals.some(p => p.fileUrl) && (
-                    <p className="italic text-xs text-slate-500 mt-2 no-print">
-                      📎 {record.paraclinicals.filter(p => p.fileUrl).length} file kết quả đính kèm (xem trên hệ thống)
-                    </p>
-                  )}
-                </div>
-              );
-            })()}
-            <p className="mt-2"><strong>b) Đánh giá:</strong></p>
-            <div className="border-b border-dashed border-slate-400 min-h-[2em] px-2 whitespace-pre-wrap">
-              {record.paraclinicals.filter(p => p.evaluation).map(p => `${p.category}: ${p.evaluation}`).join('. ')}
-            </div>
-          </div>
+          <h3 className="font-bold mt-4 page-break">IV. KHÁM CẬN LÂM SÀNG</h3>
+          <p className="italic text-xs">Xét nghiệm huyết học, sinh hóa, X-quang, siêu âm và các CLS khác khi có chỉ định của bác sỹ:</p>
+          {(() => {
+            const categories = ['Công thức máu', 'Sinh hoá', 'Miễn dịch', 'Điện tim', 'Điện não', 'X-quang', 'Siêu âm', 'CT'];
+            const grouped: Record<string, typeof record.paraclinicals> = {};
+            for (const cat of categories) grouped[cat] = [];
+            const others: typeof record.paraclinicals = [];
+            for (const p of record.paraclinicals) {
+              if (grouped[p.category]) grouped[p.category].push(p);
+              else others.push(p);
+            }
+            const all = [...categories.flatMap(c => grouped[c].map(p => [c, p] as const)), ...others.map(p => [p.category, p] as const)];
+            return (
+              <div className="space-y-3 mt-2">
+                {all.length === 0 && <p className="italic text-slate-500">Chưa có kết quả CLS nào.</p>}
+                {all.map(([cat, p]) => (
+                  <div key={p.id} className="avoid-break border border-black p-2 text-sm">
+                    <div className="font-bold">
+                      ▸ {cat}
+                      {p.testName && p.testName !== cat && <span className="font-normal italic"> — {p.testName}</span>}
+                    </div>
+                    {p.result && (
+                      <pre className="whitespace-pre-wrap font-serif text-[12pt] mt-1 leading-snug">{p.result}</pre>
+                    )}
+                    {p.evaluation && (
+                      <div className="text-sm mt-1"><strong>Đánh giá:</strong> <em>{p.evaluation}</em></div>
+                    )}
+                    {p.fileUrl && (
+                      <div className="text-xs italic text-slate-500 mt-1 no-print">📎 Có file đính kèm</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           <h3 className="font-bold mt-4">V. KẾT LUẬN</h3>
           <p><strong>1. Phân loại sức khỏe:</strong> {record.finalClassification ? CLASSIFICATION_LABELS[record.finalClassification] : '...................................................'}</p>
@@ -416,30 +453,52 @@ export default async function PrintRecord({ params }: { params: { id: string } }
             {record.conclusionText ?? ''}
           </div>
 
-          <div className="flex justify-end mt-10">
-            <div className="text-center">
+          <div className="flex justify-end mt-10 avoid-break">
+            <div className="text-center sig-cell" style={{ minWidth: 280, position: 'relative' }}>
               <div className="italic text-sm">
                 {record.concluderSignedAt ? formatDate(record.concluderSignedAt) : '......, ngày..... tháng..... năm...........'}
               </div>
               <div className="font-bold mt-1">NGƯỜI KẾT LUẬN</div>
               <div className="italic text-sm">(Ký, ghi rõ họ tên và đóng dấu)</div>
-              <div style={{ minHeight: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {record.concluderSignatureDataUrl && (
-                  record.concluderSignatureDataUrl.startsWith('CA:') ? (
-                    <div className="border-2 border-green-600 bg-green-50 rounded px-3 py-2 text-center">
-                      <div className="font-bold text-green-800 text-xs">✓ ĐÃ KÝ SỐ VNPT SmartCA</div>
-                      <div className="font-mono text-[9px] text-green-700 mt-1">
-                        Hash: {record.concluderSignatureDataUrl.slice(3, 30)}...
-                      </div>
-                      <div className="text-[9px] text-green-600 italic mt-1">
-                        (Chữ ký số có giá trị pháp lý theo Luật Giao dịch điện tử)
-                      </div>
-                    </div>
-                  ) : (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={record.concluderSignatureDataUrl} alt="" style={{ maxHeight: 65 }} />
-                  )
+              <div style={{ minHeight: 70, position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                {record.concluderSignedAt && (
+                  /* Con dấu điện tử overlay 1/3 chữ ký */
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src="/assets/images/stamp.png"
+                    alt="Con dấu"
+                    style={{
+                      position: 'absolute',
+                      width: 110, height: 110,
+                      left: '60%', top: '15%',
+                      opacity: 0.85,
+                      pointerEvents: 'none',
+                      zIndex: 1,
+                    }}
+                  />
                 )}
+                {(() => {
+                  const { image, caHash } = parseSig(record.concluderSignatureDataUrl);
+                  return (
+                    <>
+                      {image && (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={image} alt="" style={{ maxHeight: 60 }} />
+                      )}
+                      {caHash && (
+                        <div className="border-2 border-green-600 bg-green-50 rounded px-3 py-1 text-center">
+                          <div className="font-bold text-green-800 text-xs">✓ ĐÃ KÝ SỐ VNPT SmartCA</div>
+                          <div className="font-mono text-[9px] text-green-700">
+                            Hash: {caHash.slice(0, 28)}...
+                          </div>
+                          <div className="text-[9px] text-green-600 italic">
+                            (Có giá trị pháp lý theo Luật GDĐT)
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="font-bold">{record.concluderNameSnapshot ?? record.concluder?.fullName ?? ''}</div>
               {(record.concluderTitleSnapshot ?? record.concluder?.jobTitle) && (

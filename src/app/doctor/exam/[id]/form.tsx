@@ -116,6 +116,25 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
     if (res.ok) router.refresh();
   }
 
+  async function deleteSpecResult(sp: Specialty) {
+    if (!confirm(`Xóa kết quả khám "${SPECIALTY_LABELS[sp]}"? Bác sĩ phải khám lại từ đầu.`)) return;
+    setLoading(true); setMsg('');
+    const res = await fetch(`/api/doctor/records/${record.id}/exam?specialty=${sp}`, { method: 'DELETE' });
+    const data = await res.json();
+    setLoading(false);
+    if (res.ok) {
+      setMsg(`✅ Đã xóa kết quả ${SPECIALTY_LABELS[sp]}`);
+      // Reset form fields cho spec hiện tại
+      if (activeSpec === sp) {
+        setExam({ findings: '', classification: '', extraData: {} });
+        setSignature(null);
+      }
+      router.refresh();
+    } else {
+      setMsg('❌ ' + (data.error || 'Lỗi'));
+    }
+  }
+
   async function saveExam() {
     if (!activeSpec) return;
     if (!signature) { setMsg('❌ Vui lòng ký trước khi lưu'); return; }
@@ -140,8 +159,45 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
 
   // Nội khoa: đánh dấu "Bình thường" cho 1 loạt chuyên khoa Nội + ký 1 lần
   async function bulkSignNoiNormal(selected: Specialty[]) {
-    if (!signature) { setMsg('❌ Ký vào ô chữ ký ở dưới trước'); return; }
     if (selected.length === 0) { setMsg('❌ Chưa chọn mục nào'); return; }
+
+    // Nếu user đã kích hoạt SmartCA → ký số toàn bộ trong 1 transaction VNPT
+    if (caEnabled) {
+      setLoading(true); setMsg('🔐 Đang ký số VNPT SmartCA cho ' + selected.length + ' mục...');
+      try {
+        const res = await fetch('/api/smartca/sign-batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            // Ảnh chữ ký mẫu để hiển thị cùng dấu CA
+            signatureImageDataUrl: savedSignature || signature || null,
+            items: selected.map((sp) => ({
+              targetType: 'CLINICAL_EXAM',
+              targetId: `${record.id}::${sp}`,
+              payload: `${record.id}|${sp}|Bình thường|Loại I|${Date.now()}`,
+              findings: 'Bình thường',
+              classification: 'Loại I',
+            })),
+          }),
+        });
+        const data = await res.json();
+        setLoading(false);
+        if (res.ok && data.ok) {
+          setMsg(`✅ Đã ký số VNPT SmartCA ${data.success} mục Nội khoa (TranID: ${data.vnptTranId?.slice(0, 12)}...)`);
+        } else {
+          setMsg(`❌ ${data.error || `Ký được ${data.success}/${data.total}, lỗi ${data.failed}`}`);
+        }
+        router.refresh();
+        return;
+      } catch (e: any) {
+        setLoading(false);
+        setMsg('❌ ' + e.message);
+        return;
+      }
+    }
+
+    // Fallback: chữ ký canvas (không phải ký số) - cần signature từ pad
+    if (!signature) { setMsg('❌ Ký vào ô chữ ký ở dưới trước (hoặc kích hoạt SmartCA để ký số tự động)'); return; }
     setLoading(true); setMsg('');
     let ok = 0, err = 0;
     for (const sp of selected) {
@@ -268,6 +324,7 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
             setSignature={setSignature}
             savedSignature={savedSignature}
             loading={loading}
+            caEnabled={!!caEnabled}
           />
         )}
 
@@ -399,7 +456,7 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
             </div>
 
             {existing?.signedAt && (
-              <div className="text-xs">
+              <div className="text-xs space-y-2">
                 <SignatureDisplay
                   signatureDataUrl={existing.signatureDataUrl}
                   name={existing.doctorName}
@@ -407,6 +464,15 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
                   signedAt={existing.signedAt}
                   compact
                 />
+                <button
+                  type="button"
+                  onClick={() => activeSpec && deleteSpecResult(activeSpec)}
+                  disabled={loading}
+                  className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs border border-red-200 transition disabled:opacity-50"
+                  title="Xóa kết quả khám để khám lại"
+                >
+                  🗑️ Xóa kết quả khám này (khám lại)
+                </button>
               </div>
             )}
           </div>
@@ -437,7 +503,7 @@ export default function DoctorExamForm({ record, mySpecialties, savedSignature, 
 
 // ========== CHUYÊN BIỆT NỘI KHOA ==========
 function NoiKhoaQuickAction({
-  mySpecialties, signedSpecs, onBulkSign, signature, setSignature, savedSignature, loading,
+  mySpecialties, signedSpecs, onBulkSign, signature, setSignature, savedSignature, loading, caEnabled,
 }: {
   mySpecialties: Specialty[];
   signedSpecs: Specialty[];
@@ -446,11 +512,17 @@ function NoiKhoaQuickAction({
   setSignature: (s: string | null) => void;
   savedSignature: string | null;
   loading: boolean;
+  caEnabled: boolean;
 }) {
   const myNoi = NOI_SPECIALTIES.filter((s) => mySpecialties.includes(s) && !signedSpecs.includes(s));
   const [selected, setSelected] = useState<Specialty[]>(myNoi);
 
   if (myNoi.length === 0) return null;
+
+  // Khi caEnabled: KHÔNG cần signature canvas. SmartCA tự ký + ghép ảnh chữ ký mẫu (savedSignature)
+  const canSignSmartCA = caEnabled;
+  const canSignCanvas = !!signature;
+  const canProceed = (canSignSmartCA || canSignCanvas) && selected.length > 0;
 
   return (
     <details className="bg-blue-50 rounded p-3 mb-4" open>
@@ -472,13 +544,27 @@ function NoiKhoaQuickAction({
             </label>
           ))}
         </div>
-        <div>
-          <div className="text-xs font-medium text-slate-700 mb-1">Chữ ký</div>
-          <SignaturePad value={signature} onChange={setSignature} savedSignature={savedSignature} />
-        </div>
-        <button onClick={() => onBulkSign(selected)} disabled={loading || selected.length === 0 || !signature}
+
+        {caEnabled ? (
+          <div className="bg-green-50 border border-green-200 rounded p-3">
+            <div className="font-semibold text-green-800 text-sm flex items-center gap-2">
+              🔐 Ký số VNPT SmartCA (tự động)
+            </div>
+            <div className="text-xs text-green-700 mt-1">
+              {savedSignature ? '✓ Có ảnh chữ ký mẫu — sẽ chèn cùng dấu xác thực CA' : '⚠️ Bạn chưa lưu ảnh chữ ký mẫu — chỉ hiện dấu CA. Vào /doctor/profile để lưu chữ ký mẫu.'}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="text-xs font-medium text-slate-700 mb-1">Chữ ký (canvas / upload)</div>
+            <SignaturePad value={signature} onChange={setSignature} savedSignature={savedSignature} />
+          </div>
+        )}
+
+        <button onClick={() => onBulkSign(selected)} disabled={loading || !canProceed}
           className="btn-primary">
-          Ký "Bình thường" cho {selected.length} mục đã chọn
+          {caEnabled ? '🔐 ' : ''}Ký "Bình thường" cho {selected.length} mục đã chọn
+          {caEnabled && ' (SmartCA)'}
         </button>
       </div>
     </details>

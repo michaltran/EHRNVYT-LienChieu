@@ -9,6 +9,8 @@ const NAV = [
   { href: '/admin/rounds', label: 'Đợt khám', icon: '📅' },
   { href: '/admin/records', label: 'Hồ sơ khám', icon: '📋' },
   { href: '/admin/reports', label: 'Báo cáo thống kê', icon: '📈' },
+  { href: '/admin/signatures', label: 'Nhật ký ký số', icon: '🔐' },
+  { href: '/admin/backup', label: 'Sao lưu DB', icon: '💾' },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -56,7 +56,7 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 // Phân công hạng mục cận lâm sàng theo role
 export const XETNGHIEM_CATEGORIES = ['Công thức máu', 'Sinh hoá', 'Miễn dịch'];
-export const CHANDOANHINHANH_CATEGORIES = ['Điện tim', 'X-quang', 'Siêu âm'];
+export const CHANDOANHINHANH_CATEGORIES = ['Điện tim', 'Điện não', 'X-quang', 'Siêu âm', 'CT'];
 export const ALL_PARACLINICAL_CATEGORIES = [
   ...XETNGHIEM_CATEGORIES,
   ...CHANDOANHINHANH_CATEGORIES,

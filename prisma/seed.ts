@@ -65,6 +65,28 @@ async function main() {
     });
   }
 
+  // KTV Xét nghiệm + KTV CĐHA + Vital staff + Đại diện khoa + Nhân viên mẫu
+  const otherSamples = [
+    { email: 'ktv.xn@lienchieu.vn',    pass: 'ktv123',     name: 'KTV. Lê Thị Xét Nghiệm',  role: Role.KTV_XETNGHIEM,        title: 'Kỹ thuật viên Xét nghiệm' },
+    { email: 'ktv.cdha@lienchieu.vn',  pass: 'ktv123',     name: 'KTV. Phan Văn Hình Ảnh',  role: Role.KTV_CHANDOANHINHANH,  title: 'Kỹ thuật viên CĐHA' },
+    { email: 'dieuduong@lienchieu.vn', pass: 'vital123',   name: 'ĐD. Nguyễn Thể Lực',      role: Role.VITAL_STAFF,          title: 'Điều dưỡng' },
+    { email: 'dept@lienchieu.vn',      pass: 'dept123',    name: 'Trưởng khoa Nội Trú',     role: Role.DEPT_REP,             title: 'Trưởng khoa' },
+    { email: 'nhanvien@lienchieu.vn',  pass: 'nhanvien123',name: 'Nhân viên mẫu',           role: Role.EMPLOYEE,             title: '' },
+  ];
+  for (const u of otherSamples) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        passwordHash: await hash(u.pass),
+        fullName: u.name,
+        role: u.role,
+        jobTitle: u.title || null,
+      },
+    });
+  }
+
   // ====== 2. IMPORT TỪ FILE EXCEL (nếu có) ======
   const excelPath = path.join(process.cwd(), 'data', 'nhan-su.xlsx');
   if (!fs.existsSync(excelPath)) {
@@ -168,10 +190,15 @@ async function main() {
 
   console.log('✅ Seed hoàn tất.');
   console.log('');
-  console.log('Tài khoản mẫu:');
+  console.log('Tài khoản mẫu (xem chi tiết trong README.md):');
   console.log('  Admin:       admin@lienchieu.vn / admin123');
   console.log('  Giám đốc:    giamdoc@lienchieu.vn / conclude123');
-  console.log('  Bác sĩ khám: bs.noikhoa@lienchieu.vn / doctor123  (và các BS khác cùng pass)');
+  console.log('  Bác sĩ:      bs.noikhoa@lienchieu.vn / doctor123  (+ các BS khác cùng pass)');
+  console.log('  KTV XN:      ktv.xn@lienchieu.vn / ktv123');
+  console.log('  KTV CĐHA:    ktv.cdha@lienchieu.vn / ktv123');
+  console.log('  Điều dưỡng:  dieuduong@lienchieu.vn / vital123');
+  console.log('  Đại diện khoa: dept@lienchieu.vn / dept123');
+  console.log('  Nhân viên:   nhanvien@lienchieu.vn / nhanvien123');
 }
 
 main()

@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState('admin@lienchieu.vn');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,13 +66,6 @@ export default function LoginPage() {
             {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </button>
         </form>
-
-        <div className="mt-6 text-xs text-slate-500 bg-white/60 p-4 rounded-lg border border-slate-200">
-          <p className="font-medium mb-1">Tài khoản demo:</p>
-          <p>• Admin: admin@lienchieu.vn / admin123</p>
-          <p>• Bác sĩ: bs.noikhoa@lienchieu.vn / doctor123</p>
-          <p>• Kết luận (Giám đốc): giamdoc@lienchieu.vn / conclude123</p>
-        </div>
 
         <p className="text-center text-xs text-slate-400 italic mt-6">
           Software Copyright Powered by Dat Dat

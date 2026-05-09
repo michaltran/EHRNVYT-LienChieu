@@ -40,3 +40,30 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
+
+/** DELETE — hủy kết luận để kết luận lại */
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+  try {
+    const s = await requireAuth(['CONCLUDER', 'ADMIN']);
+    await prisma.healthRecord.update({
+      where: { id: params.id },
+      data: {
+        finalClassification: null,
+        conclusionText: null,
+        concluderId: null,
+        concluderSignedAt: null,
+        concluderSignatureDataUrl: null,
+        concluderNameSnapshot: null,
+        concluderTitleSnapshot: null,
+        status: 'WAITING_CONCLUSION',
+        finalizedAt: null,
+      },
+    });
+    await prisma.auditLog.create({
+      data: { userId: s.sub, action: 'DELETE_CONCLUSION', target: params.id },
+    }).catch(() => {});
+    return NextResponse.json({ ok: true, message: 'Đã hủy kết luận, có thể nhập lại' });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}

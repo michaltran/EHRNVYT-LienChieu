@@ -9,6 +9,7 @@ type R = { id: string; name: string; year: number; startDate: string; endDate: s
 export default function RoundsClient({ rounds }: { rounds: R[] }) {
   const router = useRouter();
   const [show, setShow] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const y = new Date().getFullYear();
   const [form, setForm] = useState({
     name: `Khám sức khỏe định kỳ ${y}`,
@@ -27,6 +28,19 @@ export default function RoundsClient({ rounds }: { rounds: R[] }) {
     });
     setLoading(false);
     if (res.ok) { setShow(false); router.refresh(); }
+  }
+
+  async function removeRound(r: R) {
+    const msg = r.count > 0
+      ? `Xóa đợt "${r.name}" sẽ XÓA ${r.count} hồ sơ khám và tất cả kết quả khám liên quan. Tiếp tục?`
+      : `Xóa đợt "${r.name}"?`;
+    if (!confirm(msg)) return;
+    setDeleting(r.id);
+    const res = await fetch(`/api/admin/rounds/${r.id}`, { method: 'DELETE' });
+    setDeleting(null);
+    const data = await res.json();
+    if (res.ok) router.refresh();
+    else alert('Không xóa được: ' + (data.error || 'lỗi'));
   }
 
   return (
@@ -58,7 +72,7 @@ export default function RoundsClient({ rounds }: { rounds: R[] }) {
 
       <div className="card p-0 overflow-auto">
         <table className="table-simple">
-          <thead><tr><th>Tên đợt</th><th>Năm</th><th>Từ</th><th>Đến</th><th>Trạng thái</th><th>Hồ sơ</th><th></th></tr></thead>
+          <thead><tr><th>Tên đợt</th><th>Năm</th><th>Từ</th><th>Đến</th><th>Trạng thái</th><th>Hồ sơ</th><th className="text-right">Thao tác</th></tr></thead>
           <tbody>
             {rounds.map((r) => (
               <tr key={r.id}>
@@ -66,9 +80,18 @@ export default function RoundsClient({ rounds }: { rounds: R[] }) {
                 <td>{r.year}</td>
                 <td>{new Date(r.startDate).toLocaleDateString('vi-VN')}</td>
                 <td>{r.endDate ? new Date(r.endDate).toLocaleDateString('vi-VN') : ''}</td>
-                <td><span className="badge bg-slate-100">{r.status}</span></td>
+                <td><span className="badge-slate">{r.status}</span></td>
                 <td>{r.count}</td>
-                <td><Link href={`/admin/rounds/${r.id}`} className="text-brand-600 hover:underline text-sm">Quản lý →</Link></td>
+                <td className="text-right space-x-3">
+                  <Link href={`/admin/rounds/${r.id}`} className="text-brand-600 hover:underline text-sm">Quản lý →</Link>
+                  <button
+                    onClick={() => removeRound(r)}
+                    disabled={deleting === r.id}
+                    className="text-red-600 hover:bg-red-50 px-2 py-1 rounded text-sm disabled:opacity-50 transition"
+                  >
+                    {deleting === r.id ? '...' : '🗑️ Xóa'}
+                  </button>
+                </td>
               </tr>
             ))}
             {rounds.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-slate-500">Chưa có đợt nào</td></tr>}

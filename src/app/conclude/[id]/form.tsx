@@ -107,6 +107,20 @@ export default function ConcluderForm({ record, savedSignature, caEnabled }: Pro
           <h2 className="font-semibold text-green-800">Hồ sơ đã được ký kết luận</h2>
           <p className="text-sm mt-1">Phân loại: <strong>{record.finalClassification}</strong></p>
           <p className="text-sm">Kết luận: {record.conclusionText || '—'}</p>
+          <button
+            onClick={async () => {
+              if (!confirm('Hủy kết luận để nhập lại? Chữ ký kết luận sẽ bị xóa.')) return;
+              setLoading(true);
+              const res = await fetch(`/api/conclude/${record.id}`, { method: 'DELETE' });
+              setLoading(false);
+              if (res.ok) router.refresh();
+              else alert('Không hủy được');
+            }}
+            disabled={loading}
+            className="mt-3 text-sm text-red-600 hover:bg-red-50 px-3 py-1.5 rounded border border-red-200 transition disabled:opacity-50"
+          >
+            🗑️ Hủy kết luận để nhập lại
+          </button>
         </div>
       ) : (
         <div className="card">
